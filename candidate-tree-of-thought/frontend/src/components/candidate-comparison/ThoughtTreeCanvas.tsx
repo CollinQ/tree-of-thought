@@ -80,7 +80,7 @@ const ThoughtTreeCanvas: React.FC<ThoughtTreeProps> = ({
         <h3 className="text-lg font-semibold mb-2">AI Thought Process</h3>
         <p className="text-sm text-gray-600">
           This visualization shows the AI's thought process when comparing the candidates. 
-          <span className="text-blue-600 font-medium"> Hover over any thought bubble for more details.</span> 
+          <span className="text-blue-600 font-medium"> Hover over any thought bubble for more details. </span> 
           The colors indicate the focus area of each thought.
         </p>
       </div>
