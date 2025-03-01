@@ -1,0 +1,34 @@
+Imagine you're the hiring manager for the role of "Quantum Infrastructure Architect" at a cutting-edge tech company working on the intersection of quantum computing and artificial intelligence. You need to evaluate two final candidates with unconventional backgrounds for this highly specialized position.
+Candidate A: Dr. Elara Kwan
+Background:
+Dr. Kwan has a Ph.D. in Theoretical Physics from MIT with a specialization in quantum field theory. After her academic career, she spent 3 years at a failed quantum computing startup before pivoting to traditional software engineering at a major tech company, where she's worked for the past 7 years leading infrastructure teams. She recently completed an executive certificate in quantum algorithms but hasn't applied this knowledge professionally yet.
+Interview Performance:
+
+Demonstrated exceptional theoretical understanding of quantum principles
+Struggled initially with practical implementation questions but improved after working through problems
+Proposed an innovative architecture for quantum-classical hybrid systems
+Received mixed feedback from the team regarding communication style and collaborative approaches
+Has published 4 research papers on quantum error correction in the last decade, but none recently
+
+Candidate B: Morgan Zhang
+Background:
+Morgan has an unconventional career path with a Bachelor's in Computer Science and Masters in Cognitive Science. They've spent 10 years at leading cloud infrastructure companies, becoming an expert in distributed systems. For the past 2 years, they've been self-studying quantum computing while working as a principal engineer. They've contributed to open-source quantum simulation tools and recently built a prototype quantum compiler that outperformed standard approaches in specific use cases.
+Interview Performance:
+
+Showed impressive practical knowledge of infrastructure challenges
+Applied creative analogies between classical distributed systems and quantum architectures
+Demonstrated working prototypes but admitted gaps in theoretical fundamentals
+Received enthusiastic feedback from the team on collaboration and communication
+Has no formal quantum physics education but has completed three quantum computing MOOCs and actively participates in quantum computing communities
+
+The Challenge:
+Evaluate which candidate would be better suited for this role, considering:
+
+The company needs someone who can bridge theoretical quantum concepts with practical engineering implementation
+The position requires both leadership skills and hands-on technical abilities
+The team is interdisciplinary with varying levels of quantum computing expertise
+The company's quantum hardware is still in development, so the infrastructure needs to be adaptable
+The role involves significant stakeholder management and explaining complex concepts to non-technical executives
+The company's 18-month roadmap includes delivering a commercial quantum advantage in at least one application
+
+Please provide a comprehensive analysis of the strengths and weaknesses of each candidate relative to these requirements, and make a final recommendation with detailed justification.
