@@ -127,7 +127,7 @@ const CandidateComparison = () => {
     
     thoughtTimerRef.current = setTimeout(() => {
       setCurrentThoughtIndex(prev => prev + 1);
-    }, 400);
+    }, 500); // Slightly slower animation to give time to view popups
     
     return () => {
       if (thoughtTimerRef.current) clearTimeout(thoughtTimerRef.current);
@@ -234,7 +234,7 @@ const CandidateComparison = () => {
             </>
           ) : (
             // Tree visualization and voting
-            <>
+            <div className="space-y-8"> {/* Added spacing for better layout with taller tree */}
               <ThoughtTreeCanvas 
                 thoughts={thoughts} 
                 currentThoughtIndex={currentThoughtIndex} 
@@ -262,7 +262,7 @@ const CandidateComparison = () => {
                   side="right"
                 />
               </div>
-            </>
+            </div>
           )}
           
           {winner && (
