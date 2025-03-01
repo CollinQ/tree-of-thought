@@ -29,6 +29,7 @@ export interface ProcessingIndicatorProps {
 export interface ThoughtNode {
   id: number;
   text: string;
+  fullText?: string; // Optional property to store the complete text for popups
   children: number[];
   x: number;
   y: number;

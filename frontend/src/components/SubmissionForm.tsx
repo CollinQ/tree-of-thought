@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Search, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { submitCandidateEvaluation } from '@/lib/api';
 
 const SubmissionForm: React.FC = () => {
   const router = useRouter();
@@ -13,19 +14,37 @@ const SubmissionForm: React.FC = () => {
     setUrls(prev => ({ ...prev, [candidate]: value }));
   };
 
-  const submitComparison = () => {
+  const submitComparison = async () => {
     if (loading) return; // Prevent multiple clicks
     
     setLoading(true);
     
-    // In a real app, this would submit the form data to an API and get back an evaluationId
-    // For demo purposes, we'll generate a random ID
-    const generatedEvalId = `eval-${Math.random().toString(36).substring(2, 10)}`;
-    
-    // Redirect to the evaluation page with the new ID
-    setTimeout(() => {
-      router.push(`/evaluation/${generatedEvalId}`);
-    }, 1000);
+    try {
+      // Extract profile IDs from URLs by splitting on "/" and taking the last part
+      const candidateAId = urls.candidate1.trim().split('/').pop() || '';
+      const candidateBId = urls.candidate2.trim().split('/').pop() || '';
+      
+      // Check if we have valid IDs
+      if (!candidateAId || !candidateBId) {
+        throw new Error('Please enter valid candidate profile URLs');
+      }
+      
+      console.log('Extracted profile IDs:', { candidateAId, candidateBId });
+      
+      // Submit to the backend API
+      const evaluationId = await submitCandidateEvaluation(
+        jobDescription,
+        candidateAId,
+        candidateBId
+      );
+      
+      // Redirect to the evaluation page with the new ID
+      router.push(`/evaluation/${evaluationId}`);
+    } catch (error) {
+      console.error('Error submitting comparison:', error);
+      alert('Failed to submit comparison. Please try again.');
+      setLoading(false);
+    }
   };
 
   return (
@@ -59,7 +78,7 @@ const SubmissionForm: React.FC = () => {
               <input
                 type="text"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pl-10"
-                placeholder="https://mercor.io/profile/candidate1"
+                placeholder="https://team.mercor.com/profile/candidate-id"
                 value={urls.candidate1}
                 onChange={(e) => handleInputChange('candidate1', e.target.value)}
               />
@@ -73,7 +92,7 @@ const SubmissionForm: React.FC = () => {
               <input
                 type="text"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pl-10"
-                placeholder="https://mercor.io/profile/candidate2"
+                placeholder="https://team.mercor.com/profile/candidate-id"
                 value={urls.candidate2}
                 onChange={(e) => handleInputChange('candidate2', e.target.value)}
               />
