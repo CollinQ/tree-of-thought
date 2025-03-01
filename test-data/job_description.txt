@@ -1,0 +1,25 @@
+Product Strategy & Roadmap:
+
+Lead the redesign of legacy front-end systems for fleet management solutions.
+Define the vision, strategy, and execution plan for a mobile-first interface.
+Establish clear KPIs for user engagement, adoption, and cost efficiency.
+Customer Research & MVP Development:
+
+Conduct customer interviews and feedback sessions to define pain points and use cases.
+Identify MVP features that solve real customer problems and drive engagement.
+Develop a data-driven approach to feature prioritization.
+Cloud & Cost Optimization:
+
+Evaluate cloud-based technologies (AWS, Azure, or other platforms) to optimize operational costs.
+Work closely with engineering to assess scalability, availability, and processing cost trade-offs.
+Implement automated monitoring and reporting tools to track product performance.
+Stakeholder Management & Consensus Building:
+
+Collaborate with international leadership teams to align product goals with business objectives.
+Develop and present technical documentation, A/B test results, and data-driven recommendations to senior executives.
+Work closely with cross-functional teams (engineering, design, and marketing) to ensure seamless execution.
+Pricing & Revenue Strategy:
+
+Lead pricing and promotions strategy for B2B customers.
+Develop data models to evaluate revenue impact and adoption trade-offs.
+Conduct A/B testing and user experiments to validate strategic decisions.
