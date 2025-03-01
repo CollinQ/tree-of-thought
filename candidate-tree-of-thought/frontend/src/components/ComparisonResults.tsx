@@ -11,6 +11,7 @@ import {
   ThoughtNode
 } from './candidate-comparison';
 import ThoughtTreeCanvas from './candidate-comparison/ThoughtTreeCanvas';
+import { fetchEvaluationData, EvaluationDocument } from '@/lib/api';
 
 // Define mock evaluation data
 const mockEvaluationData: EvaluationDocument = {
@@ -40,20 +41,6 @@ const mockEvaluationData: EvaluationDocument = {
   }
 };
 
-// Define the structure of the evaluation document from MongoDB
-interface EvaluationDocument {
-  _id: { $oid: string };
-  iteration_1: string[];
-  iteration_2: string[];
-  iteration_3: string[];
-  final_winner: string | null;
-  majority_vote: {
-    "Candidate A": { $numberInt: string };
-    "Candidate B": { $numberInt: string };
-  };
-  job_requirements?: string;
-}
-
 interface ComparisonResultsProps {
   evaluationId?: string | null;
 }
@@ -82,61 +69,114 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
   // Add debug state for showing additional information
   const [debug, setDebug] = useState(false);
 
-  // Function to fetch evaluation data from MongoDB
-  const fetchEvaluationData = async (evalId: string | null) => {
+  // Function to fetch evaluation data from API
+  const fetchEvaluationDataFromApi = async (evalId: string | null) => {
     console.debug("fetchEvaluationData called with ID:", evalId);
     setLoading(true);
     
     try {
-      // Try to fetch from API but with timeout to prevent long waiting
-      if (evalId) {
-        try {
-          console.debug("Attempting API fetch for evaluation", evalId);
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
-          
-          const response = await fetch(`/api/evaluations/${evalId}`, {
-            signal: controller.signal
-          });
-          clearTimeout(timeoutId);
-          
-          if (response.ok) {
-            console.debug("API response successful");
-            const data = await response.json();
-            setEvaluationData(data);
-            setInitialDataLoaded(true);
-            setLoading(false);
-            return;
-          } else {
-            console.debug("API response not OK:", response.status);
+      if (!evalId) {
+        console.debug("No evaluation ID provided, using mock data");
+        // Fall back to mock data if no evaluation ID is provided
+        setTimeout(() => {
+          if (!profiles) {
+            console.debug("Setting mock profiles");
+            const mockCandidate1 = Array.isArray(mockProfiles) ? mockProfiles[0] : mockProfiles.candidate1;
+            const mockCandidate2 = Array.isArray(mockProfiles) ? mockProfiles[1] : mockProfiles.candidate2;
+            
+            setProfiles({
+              candidate1: mockCandidate1,
+              candidate2: mockCandidate2
+            });
           }
-        } catch (error) {
-          console.debug("API endpoint not available, using mock data instead", error);
+          setEvaluationData(mockEvaluationData);
+          setInitialDataLoaded(true);
+          setLoading(false);
+        }, 1000);
+        return;
+      }
+      
+      console.debug("Fetching evaluation data from API for ID:", evalId);
+      const data = await fetchEvaluationData(evalId);
+      
+      if (!data) {
+        console.warn("No data returned from API, falling back to mock data");
+        setEvaluationData(mockEvaluationData);
+      } else {
+        console.debug("API data received:", data);
+        setEvaluationData(data);
+        
+        // If we have candidate experiences, set up the profiles
+        if (data.candidate_experiences) {
+          const candidateA = data.candidate_experiences["Candidate A"];
+          const candidateB = data.candidate_experiences["Candidate B"];
+          
+          if (candidateA && candidateB) {
+            console.debug("Setting profiles from API data");
+            // Convert the API data structure to match the ProfileData structure
+            setProfiles({
+              candidate1: {
+                name: candidateA.name,
+                profilePic: candidateA.profile_pic,
+                education: candidateA.education.map(edu => ({
+                  degree: edu.degree,
+                  major: edu.major,
+                  school: edu.school,
+                  schoolLogo: edu.school_logo || null
+                })),
+                workExperience: candidateA.work_experience.map(work => ({
+                  company: work.company,
+                  companyLogo: work.company_logo || null,
+                  role: work.role,
+                  startDate: work.start_date,
+                  endDate: work.end_date,
+                  location: work.location,
+                  descriptionBullets: work.description_bullets,
+                  yearsWorked: work.years_worked || null
+                }))
+              },
+              candidate2: {
+                name: candidateB.name,
+                profilePic: candidateB.profile_pic,
+                education: candidateB.education.map(edu => ({
+                  degree: edu.degree,
+                  major: edu.major,
+                  school: edu.school,
+                  schoolLogo: edu.school_logo || null
+                })),
+                workExperience: candidateB.work_experience.map(work => ({
+                  company: work.company,
+                  companyLogo: work.company_logo || null,
+                  role: work.role,
+                  startDate: work.start_date,
+                  endDate: work.end_date,
+                  location: work.location,
+                  descriptionBullets: work.description_bullets,
+                  yearsWorked: work.years_worked || null
+                }))
+              }
+            });
+          }
+        }
+        
+        // Set job description if available
+        if (data.job_description) {
+          setJobDescription(data.job_description);
         }
       }
       
-      // Fall back to mock data if API fails or evaluationId is null
-      console.debug("Using mock evaluation data");
-      setTimeout(() => {
-        // Set profiles from mock data if not already set
-        if (!profiles) {
-          console.debug("Setting mock profiles");
-          const mockCandidate1 = Array.isArray(mockProfiles) ? mockProfiles[0] : mockProfiles.candidate1;
-          const mockCandidate2 = Array.isArray(mockProfiles) ? mockProfiles[1] : mockProfiles.candidate2;
-          
-          setProfiles({
-            candidate1: mockCandidate1,
-            candidate2: mockCandidate2
-          });
-        }
-        setEvaluationData(mockEvaluationData);
-        setInitialDataLoaded(true);
-        setLoading(false);
-      }, 1000); // Simulate loading delay with mock data
+      setInitialDataLoaded(true);
+      setLoading(false);
     } catch (error) {
       console.error("Error fetching evaluation data:", error);
       setLoading(false);
-      setError("Failed to load evaluation data");
+      setError("Failed to load evaluation data. Please try again.");
+      
+      // Fall back to mock data in case of error
+      setTimeout(() => {
+        setEvaluationData(mockEvaluationData);
+        setInitialDataLoaded(true);
+      }, 1000);
     }
   };
 
@@ -435,15 +475,19 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
     console.debug("Evaluation ID effect triggered:", evaluationId);
     
     // Fetch data immediately on mount
-    fetchEvaluationData(evaluationId || null);
+    fetchEvaluationDataFromApi(evaluationId || null);
     
-    // TEMPORARILY DISABLE POLLING TO PREVENT REFRESH LOOPS
-    /*
-    // Set up polling interval (every 3 seconds)
+    // Set up polling interval (every 5 seconds) for incomplete evaluations
     pollingIntervalRef.current = setInterval(() => {
-      fetchEvaluationData(evaluationId || null);
-    }, 3000);
-    */
+      // Only poll if we have an evaluation ID and the evaluation is not complete
+      if (evaluationId && (!evaluationData || !evaluationData.final_winner)) {
+        fetchEvaluationDataFromApi(evaluationId);
+      } else if (pollingIntervalRef.current) {
+        // Stop polling once we have complete data
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    }, 5000);
     
     // Clean up on unmount
     return () => {
@@ -452,7 +496,7 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
         pollingIntervalRef.current = null;
       }
     };
-  }, [evaluationId]);
+  }, [evaluationId, evaluationData?.final_winner]);
 
   // Add a useEffect to automatically show evaluation when data is fully loaded
   useEffect(() => {
