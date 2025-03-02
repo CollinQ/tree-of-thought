@@ -199,8 +199,11 @@ export const ThoughtTreeCanvas: React.FC<ThoughtTreeCanvasProps> = ({
   const [hoveredThought, setHoveredThought] = useState<ThoughtNode | null>(null);
   
   // Position thoughts in a tree layout - with increased spacing
+  // Don't filter based on currentThoughtIndex - show all nodes
   const visibleThoughts = useMemo(() => {
     if (!thoughts || thoughts.length === 0) return [];
+    
+    console.debug("Positioning ALL thoughts:", thoughts.length);
     
     return thoughts.map((thought) => {
       const level = thought.level;
@@ -230,13 +233,14 @@ export const ThoughtTreeCanvas: React.FC<ThoughtTreeCanvasProps> = ({
       
       return { ...thought, x, y };
     });
-  }, [thoughts]);
+  }, [thoughts]); // Only depend on thoughts, not currentThoughtIndex
   
   // Build connections based on the children arrays
+  // Don't filter based on currentThoughtIndex - show all connections
   const connections = useMemo(() => {
     if (!visibleThoughts || visibleThoughts.length === 0) return [];
     
-    console.debug("Building connections, visibleThoughts:", visibleThoughts.length);
+    console.debug("Building ALL connections, visibleThoughts:", visibleThoughts.length);
     const result: { from: ThoughtNode; to: ThoughtNode }[] = [];
     
     // Create a map for efficient lookup
@@ -252,26 +256,15 @@ export const ThoughtTreeCanvas: React.FC<ThoughtTreeCanvasProps> = ({
       fromNode.children.forEach(childId => {
         const toNode = thoughtMap.get(childId);
         if (toNode) {
-          // Add the connection if both nodes are visible based on currentThoughtIndex
-          // Get indexes in the visibleThoughts array
-          const fromIndex = visibleThoughts.findIndex(t => t.id === fromNode.id);
-          const toIndex = visibleThoughts.findIndex(t => t.id === toNode.id);
-          
-          if (fromIndex <= currentThoughtIndex && toIndex <= currentThoughtIndex) {
-            result.push({ from: fromNode, to: toNode });
-          }
+          // Add all connections without filtering by currentThoughtIndex
+          result.push({ from: fromNode, to: toNode });
         }
       });
     });
     
     console.debug(`Created ${result.length} connections`);
     return result;
-  }, [visibleThoughts, currentThoughtIndex]);
-  
-  // Determine which thoughts should be visible at the current index
-  const displayedThoughts = useMemo(() => {
-    return visibleThoughts.filter((_, index) => index <= currentThoughtIndex);
-  }, [visibleThoughts, currentThoughtIndex]);
+  }, [visibleThoughts]); // Only depend on visibleThoughts, not currentThoughtIndex
   
   // Add ref to get container dimensions
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -300,7 +293,7 @@ export const ThoughtTreeCanvas: React.FC<ThoughtTreeCanvasProps> = ({
     <div className="relative w-full h-full" style={{ minHeight: '650px' }} ref={containerRef}>
       {/* Small debug info in the corner */}
       <div className="absolute top-0 left-0 bg-white p-1 text-xs z-50 opacity-70 rounded">
-        Nodes: {displayedThoughts.length}/{visibleThoughts.length}, Index: {currentThoughtIndex}
+        Nodes: {visibleThoughts.length}, Connections: {connections.length}
       </div>
       
       {/* Fixed card-style hover popup in top right corner */}
@@ -363,8 +356,8 @@ export const ThoughtTreeCanvas: React.FC<ThoughtTreeCanvasProps> = ({
         })}
       </svg>
 
-      {/* Render the thought nodes with rainbow colors based on level */}
-      {displayedThoughts.map((thought) => {
+      {/* Render ALL thought nodes without filtering by currentThoughtIndex */}
+      {visibleThoughts.map((thought) => {
         const isHovered = hoveredThought?.id === thought.id;
 
         const style = {
