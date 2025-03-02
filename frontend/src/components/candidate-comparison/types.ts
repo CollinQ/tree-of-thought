@@ -2,18 +2,22 @@
 
 export interface ProfileData {
   name: string;
-  elo: string;
-  eloChange: string;
-  profileImage: string;
+  profilePic: string;
   experience: {
-    title: string;
-    organization: string;
+    company: string;
+    companyLogo: string;
+    descriptionBullets: string[];
+    endDate: string;
+    startDate: string;
+    role: string;
+    yearsWorked: string;
   }[];
   education: {
-    institution: string;
+    major: string;
     degree: string;
+    school: string;
+    schoolLogo: string | null;
   }[];
-  honors: string[];
 }
 
 export interface ProfileCardProps {

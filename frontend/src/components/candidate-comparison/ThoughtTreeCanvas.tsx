@@ -25,20 +25,48 @@ const ThoughtTreeCanvas: React.FC<ThoughtTreeCanvasProps> = ({
   // Calculate which thoughts are visible based on the current index
   const visibleThoughts = thoughts.slice(0, currentThoughtIndex + 1);
 
-  // Generate connections between nodes
-  const connections = visibleThoughts.flatMap((thought: ThoughtNode) => 
-    thought.children
-      .filter((childId: number) => {
-        const childIndex = thoughts.findIndex((t: ThoughtNode) => t.id === childId);
-        return childIndex <= currentThoughtIndex;
+  // Add a safety check for visibleThoughts
+  const connections = Array.isArray(visibleThoughts) 
+    ? visibleThoughts.flatMap((thought: ThoughtNode) => {
+        // Check if thought exists and has a children property
+        if (!thought || !thought.children || !Array.isArray(thought.children)) {
+          console.debug("Skipping thought with missing or invalid children:", thought);
+          return [];
+        }
+      
+        return thought.children
+          // Filter children that should be visible based on currentThoughtIndex
+          .filter((childId: number) => {
+            if (!Array.isArray(thoughts)) {
+              console.debug("thoughts array is not valid:", thoughts);
+              return false;
+            }
+            const childIndex = thoughts.findIndex((t: ThoughtNode) => t && t.id === childId);
+            // Only return true if the child exists and is within the current visible range
+            return childIndex !== -1 && childIndex <= currentThoughtIndex;
+          })
+          // Map each child ID to a connection object
+          .map((childId: number) => {
+            if (!Array.isArray(thoughts)) return null;
+            
+            const child = thoughts.find((t: ThoughtNode) => t && t.id === childId);
+            if (!child) {
+              console.debug("Could not find child with ID:", childId);
+              return null;
+            }
+            return { from: thought, to: child };
+          })
+          // Filter out null connections
+          .filter((conn): conn is { from: ThoughtNode; to: ThoughtNode } => conn !== null);
       })
-      .map((childId: number) => {
-        const child = thoughts.find((t: ThoughtNode) => t.id === childId);
-        if (!child) return null;
-        return { from: thought, to: child };
-      })
-      .filter((conn): conn is { from: ThoughtNode; to: ThoughtNode } => conn !== null)
-  );
+    : [];
+
+  // Add debug logging
+  console.debug("Building connections:", {
+    visibleThoughtsCount: Array.isArray(visibleThoughts) ? visibleThoughts.length : 0,
+    connectionsCount: connections.length,
+    currentThoughtIndex
+  });
 
   // Generate thought detail content for hovering
   const getThoughtDetail = (thought: ThoughtNode) => {
@@ -46,7 +74,11 @@ const ThoughtTreeCanvas: React.FC<ThoughtTreeCanvasProps> = ({
     const displayText = thought.fullText || thought.text;
     return (
       <div className="text-sm">
-        <div className="font-semibold mb-2 pb-1 border-b border-gray-100">{thought.type.charAt(0).toUpperCase() + thought.type.slice(1)} Thought</div>
+        <div className="font-semibold mb-2 pb-1 border-b border-gray-100">
+          {thought.type 
+            ? `${thought.type.charAt(0).toUpperCase() + thought.type.slice(1)} Thought` 
+            : "Evaluation Thought"}
+        </div>
         <div className="leading-relaxed">{displayText}</div>
         
         {/* Add some contextual information based on the thought type */}

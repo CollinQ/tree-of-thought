@@ -180,294 +180,89 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
     }
   };
 
-  // Convert MongoDB document strings to ThoughtNodes
-  const evaluationThoughts = useMemo((): ThoughtNode[] => {
-    if (!evaluationData) return thoughts;
-
-    console.debug("Building thought tree with data:", {
-      iter1Length: evaluationData.iteration_1.length,
-      iter2Length: evaluationData.iteration_2.length,
-      iter3Length: evaluationData.iteration_3.length
-    });
-
-    // Helper function to truncate text while preserving important keywords
-    const truncateText = (text: string, maxLength = 40): string => {
-      if (text.length <= maxLength) return text;
-      
-      // Always include "Candidate A" or "Candidate B" in the truncated text
-      if (text.includes("Candidate A") || text.includes("Candidate B")) {
-        const candidateMatch = text.match(/(Candidate [AB])/);
-        if (candidateMatch && candidateMatch.index !== undefined) {
-          // Include the candidate mention in the truncated text
-          const startPos = Math.max(0, Math.min(candidateMatch.index - 10, text.length - maxLength));
-          return text.substr(startPos, maxLength - 3) + "...";
-        }
-      }
-      
-      return text.substr(0, maxLength - 3) + "...";
-    };
-
-    // Create a tree structure from the evaluation data
-    const mappedThoughts: ThoughtNode[] = [];
-    const ROOT_ID = 1;
-    
-    // Count nodes for spacing calculations
+  // Safely create candidate nodes with proper null checks
     const candidateANodes = {
-      level1: evaluationData.iteration_1.filter(t => t.includes("Candidate A")).length,
-      level2: evaluationData.iteration_2.filter(t => t.includes("Candidate A")).length,
-      level3: evaluationData.iteration_3.filter(t => t.includes("Candidate A")).length
+    level1: evaluationData?.iteration_1 ? 
+      evaluationData.iteration_1.filter(t => t.includes("Candidate A")).length : 0,
+    level2: evaluationData?.iteration_2 ? 
+      evaluationData.iteration_2.filter(t => t.includes("Candidate A")).length : 0,
+    level3: evaluationData?.iteration_3 ? 
+      evaluationData.iteration_3.filter(t => t.includes("Candidate A")).length : 0
     };
     
     const candidateBNodes = {
-      level1: evaluationData.iteration_1.filter(t => t.includes("Candidate B")).length,
-      level2: evaluationData.iteration_2.filter(t => t.includes("Candidate B")).length,
-      level3: evaluationData.iteration_3.filter(t => t.includes("Candidate B")).length
-    };
-    
-    // Calculate vertical spacing - increase spacing between levels
-    const totalLevels = 6; // Root, branch, 3 iterations, final
-    const ySpacing = 0.12; // Increased vertical spacing for a taller layout
-    
-    // Y positions for each level - more spread out vertically
-    const levelY = {
-      root: 0.05, // Start higher
-      branch: 0.05 + ySpacing,
-      level1: 0.05 + ySpacing * 2.5, // Add extra spacing
-      level2: 0.05 + ySpacing * 4, // Add extra spacing
-      level3: 0.05 + ySpacing * 5.5, // Add extra spacing
-      final: 0.05 + ySpacing * 7  // Add extra spacing
-    };
-    
-    // Add root node
-    mappedThoughts.push({
-      id: ROOT_ID,
-      text: truncateText("Analyzing candidate profiles and job requirements..."),
-      fullText: "Analyzing candidate profiles and job requirements...", // Store full text for popup
-      children: [2, 3], // IDs of branch nodes
-      x: 0.5,
-      y: levelY.root,
-      type: "root"
-    });
+    level1: evaluationData?.iteration_1 ? 
+      evaluationData.iteration_1.filter(t => t.includes("Candidate B")).length : 0,
+    level2: evaluationData?.iteration_2 ? 
+      evaluationData.iteration_2.filter(t => t.includes("Candidate B")).length : 0,
+    level3: evaluationData?.iteration_3 ? 
+      evaluationData.iteration_3.filter(t => t.includes("Candidate B")).length : 0
+  };
 
-    // Create branch nodes for candidates
-    mappedThoughts.push({
-      id: 2,
-      text: truncateText("Evaluating Candidate A's qualifications"),
-      fullText: "Evaluating Candidate A's qualifications", // Store full text for popup
-      children: [],
-      x: 0.25, // Moved closer to center from 0.3
-      y: levelY.branch,
-      type: "branch1"
-    });
+  // When processing the thoughts, ensure they exist before accessing them
+  const evaluationThoughts = useMemo(() => {
+    console.debug("Processing evaluation thoughts data");
     
-    mappedThoughts.push({
-      id: 3,
-      text: truncateText("Evaluating Candidate B's qualifications"),
-      fullText: "Evaluating Candidate B's qualifications", // Store full text for popup
-      children: [],
-      x: 0.75, // Moved farther from center from 0.7
-      y: levelY.branch,
-      type: "branch1"
-    });
+    if (!evaluationData) {
+      console.debug("No evaluation data available yet");
+      return [];
+    }
     
-    // Map iteration_1 thoughts (first level)
-    let nextId = 4;
-    const iter1StartId = nextId;
+    let thoughts = [];
     
-    // Counters for node positioning
-    let candidateACount = 0;
-    let candidateBCount = 0;
-    
-    evaluationData.iteration_1.forEach((text) => {
-      const isForCandidateA = text.includes("Candidate A");
-      const parentId = isForCandidateA ? 2 : 3;
-      const type = isForCandidateA ? "jenny" : "radostin"; // using existing types for styling
-      
-      // Calculate horizontal position based on node count within its group
-      let x;
-      if (isForCandidateA) {
-        // Position within the 0.05 to 0.35 range for Candidate A (narrower spread)
-        const nodeCount = candidateANodes.level1;
-        const nodeIndex = candidateACount++;
-        x = nodeCount > 1 
-          ? 0.05 + (0.3 * nodeIndex / (nodeCount - 1)) 
-          : 0.2;
+    // Process iteration 1 if it exists
+    if (evaluationData.iteration_1 && Array.isArray(evaluationData.iteration_1)) {
+      console.debug("Processing iteration 1 with", evaluationData.iteration_1.length, "thoughts");
+      evaluationData.iteration_1.forEach((thought, index) => {
+        thoughts.push({
+          id: `1-${index}`,
+          level: 1,
+          content: thought,
+          type: 'analysis', // Add a default type
+          candidateA: thought.includes("Candidate A"),
+          candidateB: thought.includes("Candidate B")
+        });
+      });
       } else {
-        // Position within the 0.65 to 0.95 range for Candidate B (narrower spread)
-        const nodeCount = candidateBNodes.level1;
-        const nodeIndex = candidateBCount++;
-        x = nodeCount > 1 
-          ? 0.65 + (0.3 * nodeIndex / (nodeCount - 1)) 
-          : 0.8;
-      }
-      
-      const node: ThoughtNode = {
-        id: nextId,
-        text: truncateText(text, 35), // Truncate to shorter length
-        fullText: text, // Store full text for popup
-        children: [], // Will be populated later
-        x,
-        y: levelY.level1,
-        type
-      };
-      
-      // Add child ID to parent's children array
-      const parentNode = mappedThoughts.find(n => n.id === parentId);
-      if (parentNode) {
-        if (!parentNode.children.includes(nextId)) {
-          parentNode.children.push(nextId);
-        }
-      }
-      
-      mappedThoughts.push(node);
-      nextId++;
-    });
+      console.debug("Iteration 1 is missing or not an array");
+    }
     
-    // Map iteration_2 thoughts (middle level)
-    const iter2StartId = nextId;
-    
-    // Reset counters for level 2
-    candidateACount = 0;
-    candidateBCount = 0;
-    
-    evaluationData.iteration_2.forEach((text) => {
-      const isForCandidateA = text.includes("Candidate A");
-      const type = isForCandidateA ? "jenny" : "radostin";
-      
-      // Calculate horizontal position based on node count within its group
-      let x;
-      if (isForCandidateA) {
-        // Position within the 0.05 to 0.35 range for Candidate A (narrower spread)
-        const nodeCount = candidateANodes.level2;
-        const nodeIndex = candidateACount++;
-        x = nodeCount > 1 
-          ? 0.05 + (0.3 * nodeIndex / (nodeCount - 1)) 
-          : 0.2;
+    // Process iteration 2 if it exists
+    if (evaluationData.iteration_2 && Array.isArray(evaluationData.iteration_2)) {
+      console.debug("Processing iteration 2 with", evaluationData.iteration_2.length, "thoughts");
+      evaluationData.iteration_2.forEach((thought, index) => {
+        thoughts.push({
+          id: `2-${index}`,
+          level: 2,
+          content: thought,
+          type: 'analysis', // Add a default type
+          candidateA: thought.includes("Candidate A"),
+          candidateB: thought.includes("Candidate B")
+        });
+      });
       } else {
-        // Position within the 0.65 to 0.95 range for Candidate B (narrower spread)
-        const nodeCount = candidateBNodes.level2;
-        const nodeIndex = candidateBCount++;
-        x = nodeCount > 1 
-          ? 0.65 + (0.3 * nodeIndex / (nodeCount - 1)) 
-          : 0.8;
-      }
-      
-      const node: ThoughtNode = {
-        id: nextId,
-        text: truncateText(text, 35), // Truncate to shorter length
-        fullText: text, // Store full text for popup
-        children: [], // Will be populated later
-        x,
-        y: levelY.level2,
-        type
-      };
-      
-      // Connect to a parent from iteration 1
-      // Find appropriate parents from iteration 1
-      const potentialParents = mappedThoughts.filter(n => 
-        n.id >= iter1StartId && 
-        n.id < iter2StartId && 
-        ((isForCandidateA && n.type === "jenny") || (!isForCandidateA && n.type === "radostin"))
-      );
-      
-      if (potentialParents.length > 0) {
-        // Choose a parent - try to select closest parent on x-axis
-        const closestParent = potentialParents.reduce((closest, current) => {
-          const currentDist = Math.abs(current.x - x);
-          const closestDist = Math.abs(closest.x - x);
-          return currentDist < closestDist ? current : closest;
-        }, potentialParents[0]);
-        
-        // Add this node as a child of the parent
-        closestParent.children.push(nextId);
-      }
-      
-      mappedThoughts.push(node);
-      nextId++;
-    });
+      console.debug("Iteration 2 is missing or not an array");
+    }
     
-    // Map iteration_3 thoughts (bottom level)
-    const iter3StartId = nextId;
+    // Process iteration 3 if it exists
+    if (evaluationData.iteration_3 && Array.isArray(evaluationData.iteration_3)) {
+      console.debug("Processing iteration 3 with", evaluationData.iteration_3.length, "thoughts");
+      evaluationData.iteration_3.forEach((thought, index) => {
+        thoughts.push({
+          id: `3-${index}`,
+          level: 3,
+          content: thought,
+          type: 'analysis', // Add a default type
+          candidateA: thought.includes("Candidate A"),
+          candidateB: thought.includes("Candidate B")
+        });
+      });
+    } else {
+      console.debug("Iteration 3 is missing or not an array");
+    }
     
-    // Reset counters for level 3
-    candidateACount = 0;
-    candidateBCount = 0;
-    
-    evaluationData.iteration_3.forEach((text) => {
-      const isForCandidateA = text.includes("Candidate A");
-      const type = isForCandidateA ? "jenny" : "radostin";
-      
-      // Calculate horizontal position based on node count within its group
-      let x;
-      if (isForCandidateA) {
-        // Position within the 0.05 to 0.35 range for Candidate A (narrower spread)
-        const nodeCount = candidateANodes.level3;
-        const nodeIndex = candidateACount++;
-        x = nodeCount > 1 
-          ? 0.05 + (0.3 * nodeIndex / (nodeCount - 1)) 
-          : 0.2;
-      } else {
-        // Position within the 0.65 to 0.95 range for Candidate B (narrower spread)
-        const nodeCount = candidateBNodes.level3;
-        const nodeIndex = candidateBCount++;
-        x = nodeCount > 1 
-          ? 0.65 + (0.3 * nodeIndex / (nodeCount - 1)) 
-          : 0.8;
-      }
-      
-      const node: ThoughtNode = {
-        id: nextId,
-        text: truncateText(text, 35), // Truncate to shorter length
-        fullText: text, // Store full text for popup
-        children: [], // Will be populated later
-        x,
-        y: levelY.level3,
-        type
-      };
-      
-      // Connect to a parent from iteration 2
-      // Find appropriate parents from iteration 2
-      const potentialParents = mappedThoughts.filter(n => 
-        n.id >= iter2StartId && 
-        n.id < iter3StartId && 
-        ((isForCandidateA && n.type === "jenny") || (!isForCandidateA && n.type === "radostin"))
-      );
-      
-      if (potentialParents.length > 0) {
-        // Choose a parent - try to select closest parent on x-axis
-        const closestParent = potentialParents.reduce((closest, current) => {
-          const currentDist = Math.abs(current.x - x);
-          const closestDist = Math.abs(closest.x - x);
-          return currentDist < closestDist ? current : closest;
-        }, potentialParents[0]);
-        
-        // Add this node as a child of the parent
-        closestParent.children.push(nextId);
-      }
-      
-      mappedThoughts.push(node);
-      nextId++;
-    });
-    
-    // Add final evaluation node
-    mappedThoughts.push({
-      id: nextId,
-      text: truncateText(`Final: ${evaluationData.final_winner} is the better fit`),
-      fullText: `Final evaluation: ${evaluationData.final_winner} is the better fit for this role.`,
-      children: [],
-      x: 0.5,
-      y: levelY.final,
-      type: "final"
-    });
-    
-    // Add connections from iteration 3 to final node
-    mappedThoughts.filter(n => n.id >= iter3StartId && n.id < nextId).forEach(node => {
-      node.children.push(nextId);
-    });
-    
-    console.debug("Built thought tree with nodes:", mappedThoughts.length);
-    
-    return mappedThoughts;
+    console.debug("Processed total thoughts:", thoughts.length);
+    return thoughts;
   }, [evaluationData]);
 
   // Effect to initialize polling for evaluation data

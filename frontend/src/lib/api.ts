@@ -47,7 +47,7 @@ export interface CandidateExperience {
   }
   
   interface CandidateEvaluationResponse {
-    evaluation_id: string;
+    document_id: string;
     success: boolean;
     message?: string;
   }
@@ -87,11 +87,11 @@ export interface CandidateExperience {
   
       const data: CandidateEvaluationResponse = await response.json();
       
-      if (!data.success) {
-        throw new Error(data.message || 'Failed to submit evaluation');
-      }
+      // if (!data.success) {
+      //   throw new Error(data.message || 'Failed to submit evaluation');
+      // }
   
-      return data.evaluation_id;
+      return data.document_id;
     } catch (error) {
       console.error('Error submitting evaluation:', error);
       throw error;
