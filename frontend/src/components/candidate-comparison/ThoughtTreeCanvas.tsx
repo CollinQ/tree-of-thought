@@ -68,55 +68,11 @@ const getTypeColor = (type: string, element: 'background' | 'border' | 'text' | 
   return colors[type][element] || defaultColors[element];
 };
 
-// Update the popup positioning logic to position closer to the node
-const getPopupPosition = (thought: ThoughtNode) => {
-  // Default is directly below the node with minimal gap
-  let position = {
-    left: `${thought.x * 100}%`,
-    top: `${thought.y * 100 + 5}%`, // Reduced gap to 5%
-    transform: 'translate(-50%, 0)',
-  };
-  
-  // For nodes at the bottom (level 3+), position the popup above with minimal gap
-  if (thought.level >= 3) {
-    position = {
-      left: `${thought.x * 100}%`,
-      top: `${thought.y * 100 - 5}%`, // Reduced gap to 5%
-      transform: 'translate(-50%, -100%)',
-    };
-  }
-  
-  // For nodes on the left edge (x < 0.2), position to the right with minimal gap
-  if (thought.x < 0.2) {
-    position = {
-      left: `${thought.x * 100 + 3}%`, // Reduced gap to 3%
-      top: `${thought.y * 100}%`,
-      transform: 'translate(0, -50%)',
-    };
-  }
-  
-  // For nodes on the right edge (x > 0.8), position to the left with minimal gap
-  if (thought.x > 0.8) {
-    position = {
-      left: `${thought.x * 100 - 3}%`, // Reduced gap to 3%
-      top: `${thought.y * 100}%`,
-      transform: 'translate(-100%, -50%)',
-    };
-  }
-  
-  // Determine if we should use fixed positioning (for edge cases)
-  const useFixed = (thought.y > 0.8) || (thought.x < 0.1) || (thought.x > 0.9);
-  
-  return { position, useFixed };
-};
-
-// Alternative implementation using only HTML elements
 export const ThoughtTreeCanvas: React.FC<ThoughtTreeCanvasProps> = ({
   thoughts,
   currentThoughtIndex,
 }) => {
   const [hoveredThought, setHoveredThought] = useState<ThoughtNode | null>(null);
-  
   // Position thoughts in a tree layout
   const visibleThoughts = useMemo(() => {
     if (!thoughts || thoughts.length === 0) return [];
@@ -152,37 +108,62 @@ export const ThoughtTreeCanvas: React.FC<ThoughtTreeCanvasProps> = ({
   }, [thoughts]);
   
   return (
-    <div className="relative w-full h-full" style={{ minHeight: '500px', border: '1px dashed #ccc' }}>
-      {/* Render connections as HTML divs */}
-      {visibleThoughts.map(fromNode => {
-        if (!fromNode.children || fromNode.children.length === 0) return null;
-        
-        return fromNode.children.map(childId => {
-          const toNode = visibleThoughts.find(node => node.id === childId);
-          if (!toNode) return null;
+    <div className="relative w-full h-full" style={{ minHeight: '500px' }}>
+      {/* Render the thought nodes */}
+      {visibleThoughts.map((thought, index) => {
+        const isVisible = index <= currentThoughtIndex;
+        if (!isVisible) return null;
+
+        const isHovered = hoveredThought?.id === thought.id;
+
+        const style = {
+          left: `${thought.x * 100}%`,
+          top: `${thought.y * 100}%`,
+          transform: 'translate(-50%, -50%)',
+          backgroundColor: getTypeColor(thought.type, 'background', typeColors),
+          borderColor: getTypeColor(thought.type, 'border', typeColors),
+          color: getTypeColor(thought.type, 'text', typeColors),
+          opacity: isVisible ? 1 : 0,
+          transition: 'opacity 0.3s ease-in-out',
+        };
+
+        return (
+          <div
+            key={`thought-${thought.id}`}
+            className="absolute p-3 rounded-lg border shadow-md max-w-xs z-10"
+            style={style}
+            onMouseEnter={() => setHoveredThought(thought)}
+            onMouseLeave={() => setHoveredThought(null)}
+          >
+            <div className={`text-sm relative ${isHovered ? 'font-medium' : ''}`}>
+              {thought.text}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Render the SVG connections */}
+      <svg 
+        className="absolute inset-0 w-full h-full pointer-events-none z-0"
+        style={{ overflow: 'visible' }}
+      >
+        {connections.map((connection, index) => {
+          const { from, to } = connection;
           
-          // Calculate the line length and angle
-          const fromX = fromNode.x * 100;
-          const fromY = fromNode.y * 100;
-          const toX = toNode.x * 100;
-          const toY = toNode.y * 100;
-          
-          const dx = toX - fromX;
-          const dy = toY - fromY;
-          const length = Math.sqrt(dx * dx + dy * dy);
-          const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-          
-          const style = {
-            position: 'absolute' as const,
-            left: `${fromX}%`,
-            top: `${fromY}%`,
-            width: `${length}%`,
-            height: '2px',
-            backgroundColor: '#4285F4',
-            transformOrigin: '0 0',
-            transform: `rotate(${angle}deg)`,
-            zIndex: 0,
-          };
+          // Debug each connection
+          console.debug(`Connection ${index}: ${from.id} -> ${to.id}`, {
+            isRootConnection: from.id === 0,
+            fromLevel: from.level,
+            toLevel: to.level,
+            fromX: from.x,
+            fromY: from.y,
+            toX: to.x,
+            toY: to.y,
+            fromXPercent: `${from.x * 100}%`,
+            fromYPercent: `${from.y * 100}%`,
+            toXPercent: `${to.x * 100}%`,
+            toYPercent: `${to.y * 100}%`
+          });
           
           return (
             <div 
@@ -191,70 +172,8 @@ export const ThoughtTreeCanvas: React.FC<ThoughtTreeCanvasProps> = ({
               className="pointer-events-none"
             />
           );
-        });
-      })}
-      
-      {/* Render nodes */}
-      {visibleThoughts.map((thought) => {
-        const style = {
-          position: 'absolute' as const,
-          left: `${thought.x * 100}%`,
-          top: `${thought.y * 100}%`,
-          transform: 'translate(-50%, -50%)',
-          backgroundColor: thought.type === 'root' ? '#e0f2fe' : '#f0fdf4',
-          borderColor: thought.type === 'root' ? '#7dd3fc' : '#bbf7d0',
-          color: thought.type === 'root' ? '#0369a1' : '#166534',
-          maxWidth: '180px',
-          minHeight: '60px',
-          zIndex: 1000,
-          padding: '12px',
-          borderRadius: '8px',
-          border: '1px solid',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        };
-        
-        return (
-          <div
-            key={`node-${thought.id}`}
-            style={style}
-            onMouseEnter={() => setHoveredThought(thought)}
-            onMouseLeave={() => setHoveredThought(null)}
-          >
-            <div className="absolute top-0 right-0 bg-gray-200 text-xs px-1 rounded-bl">
-              {thought.id}
-            </div>
-            <div className="text-sm">
-              {thought.text.length > 40 ? `${thought.text.substring(0, 40)}...` : thought.text}
-            </div>
-          </div>
-        );
-      })}
-      
-      {/* Hover popup */}
-      {hoveredThought && (
-        <div
-          style={{
-            position: 'absolute',
-            left: `${hoveredThought.x * 100}%`,
-            top: `${hoveredThought.y * 100 + 5}%`,
-            transform: 'translate(-50%, 0)',
-            maxWidth: '400px',
-            backgroundColor: 'white',
-            boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-            border: '1px solid rgba(0,0,0,0.1)',
-            borderRadius: '8px',
-            padding: '12px',
-            zIndex: 9999,
-          }}
-        >
-          <div className="text-sm font-medium mb-2">
-            {hoveredThought.type || 'Thought'} (ID: {hoveredThought.id})
-          </div>
-          <div className="text-sm">
-            {hoveredThought.fullText || hoveredThought.text}
-          </div>
-        </div>
-      )}
+        })}
+      </svg>
     </div>
   );
 };
