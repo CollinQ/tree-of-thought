@@ -34,10 +34,14 @@ export interface ThoughtNode {
   id: number;
   text: string;
   fullText?: string; // Optional property to store the complete text for popups
+  content?: string;  // The full content of the thought
   children: number[];
-  x: number;
-  y: number;
+  x?: number;        // Positioning coordinates (optional as they're calculated later)
+  y?: number;
   type: string;
+  level?: number;    // The iteration level (1, 2, 3, etc.)
+  candidateA?: boolean; // Whether this thought is about candidate A
+  candidateB?: boolean; // Whether this thought is about candidate B
 }
 
 export interface TypeColor {

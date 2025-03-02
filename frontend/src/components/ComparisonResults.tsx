@@ -105,6 +105,17 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
       } else {
         console.debug("API data received:", data);
         setEvaluationData(data);
+        if (data?.majority_vote) {
+          
+          const voteA = data.majority_vote["Candidate A"] || 0;
+          const voteB = data.majority_vote["Candidate B"] || 0;
+          
+          // console.debug("Setting votes from API data", { voteA, voteB });
+          setVotes({
+            candidate1: voteA,
+            candidate2: voteB
+          });
+        }
         
         // If we have candidate experiences, set up the profiles
         if (data.candidate_experiences) {
@@ -124,15 +135,14 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
                   school: edu.school,
                   schoolLogo: edu.school_logo || null
                 })),
-                workExperience: candidateA.work_experience.map(work => ({
+                experience: candidateA.work_experience.map(work => ({
                   company: work.company,
-                  companyLogo: work.company_logo || null,
+                  companyLogo: work.company_logo || "",
                   role: work.role,
                   startDate: work.start_date,
                   endDate: work.end_date,
-                  location: work.location,
                   descriptionBullets: work.description_bullets,
-                  yearsWorked: work.years_worked || null
+                  yearsWorked: work.years_worked ? work.years_worked.toString() : ""
                 }))
               },
               candidate2: {
@@ -144,15 +154,14 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
                   school: edu.school,
                   schoolLogo: edu.school_logo || null
                 })),
-                workExperience: candidateB.work_experience.map(work => ({
+                experience: candidateB.work_experience.map(work => ({
                   company: work.company,
-                  companyLogo: work.company_logo || null,
+                  companyLogo: work.company_logo || "",
                   role: work.role,
                   startDate: work.start_date,
                   endDate: work.end_date,
-                  location: work.location,
                   descriptionBullets: work.description_bullets,
-                  yearsWorked: work.years_worked || null
+                  yearsWorked: work.years_worked ? work.years_worked.toString() : ""
                 }))
               }
             });
@@ -199,7 +208,7 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
       evaluationData.iteration_3.filter(t => t.includes("Candidate B")).length : 0
   };
 
-  // When processing the thoughts, ensure they exist before accessing them
+  // Update the evaluationThoughts useMemo function to create proper ThoughtNode objects
   const evaluationThoughts = useMemo(() => {
     console.debug("Processing evaluation thoughts data");
     
@@ -208,19 +217,26 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
       return [];
     }
     
-    let thoughts = [];
+    let thoughts: ThoughtNode[] = [];
+    let thoughtId = 0;
     
     // Process iteration 1 if it exists
     if (evaluationData.iteration_1 && Array.isArray(evaluationData.iteration_1)) {
       console.debug("Processing iteration 1 with", evaluationData.iteration_1.length, "thoughts");
-      evaluationData.iteration_1.forEach((thought, index) => {
+      evaluationData.iteration_1.forEach((thought) => {
+        const isAboutCandidateA = thought.includes("Candidate A");
+        const isAboutCandidateB = thought.includes("Candidate B");
+        
         thoughts.push({
-          id: `1-${index}`,
+          id: thoughtId++,
           level: 1,
           content: thought,
-          type: 'analysis', // Add a default type
-          candidateA: thought.includes("Candidate A"),
-          candidateB: thought.includes("Candidate B")
+          text: thought.substring(0, 60) + (thought.length > 60 ? "..." : ""),
+          fullText: thought,
+          type: isAboutCandidateA ? 'jenny' : isAboutCandidateB ? 'radostin' : 'analysis',
+          candidateA: isAboutCandidateA,
+          candidateB: isAboutCandidateB,
+          children: [] // Will be populated during positioning
         });
       });
       } else {
@@ -230,14 +246,20 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
     // Process iteration 2 if it exists
     if (evaluationData.iteration_2 && Array.isArray(evaluationData.iteration_2)) {
       console.debug("Processing iteration 2 with", evaluationData.iteration_2.length, "thoughts");
-      evaluationData.iteration_2.forEach((thought, index) => {
+      evaluationData.iteration_2.forEach((thought) => {
+        const isAboutCandidateA = thought.includes("Candidate A");
+        const isAboutCandidateB = thought.includes("Candidate B");
+        
         thoughts.push({
-          id: `2-${index}`,
+          id: thoughtId++,
           level: 2,
           content: thought,
-          type: 'analysis', // Add a default type
-          candidateA: thought.includes("Candidate A"),
-          candidateB: thought.includes("Candidate B")
+          text: thought.substring(0, 60) + (thought.length > 60 ? "..." : ""),
+          fullText: thought,
+          type: isAboutCandidateA ? 'jenny' : isAboutCandidateB ? 'radostin' : 'analysis',
+          candidateA: isAboutCandidateA,
+          candidateB: isAboutCandidateB,
+          children: [] // Will be populated during positioning
         });
       });
       } else {
@@ -247,14 +269,20 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
     // Process iteration 3 if it exists
     if (evaluationData.iteration_3 && Array.isArray(evaluationData.iteration_3)) {
       console.debug("Processing iteration 3 with", evaluationData.iteration_3.length, "thoughts");
-      evaluationData.iteration_3.forEach((thought, index) => {
+      evaluationData.iteration_3.forEach((thought) => {
+        const isAboutCandidateA = thought.includes("Candidate A");
+        const isAboutCandidateB = thought.includes("Candidate B");
+        
         thoughts.push({
-          id: `3-${index}`,
+          id: thoughtId++,
           level: 3,
           content: thought,
-          type: 'analysis', // Add a default type
-          candidateA: thought.includes("Candidate A"),
-          candidateB: thought.includes("Candidate B")
+          text: thought.substring(0, 60) + (thought.length > 60 ? "..." : ""),
+          fullText: thought,
+          type: isAboutCandidateA ? 'jenny' : isAboutCandidateB ? 'radostin' : 'analysis',
+          candidateA: isAboutCandidateA,
+          candidateB: isAboutCandidateB,
+          children: [] // Will be populated during positioning
         });
       });
     } else {
@@ -265,24 +293,49 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
     return thoughts;
   }, [evaluationData]);
 
-  // Effect to initialize polling for evaluation data
+  // Update the polling effect to be more robust
   useEffect(() => {
     console.debug("Evaluation ID effect triggered:", evaluationId);
     
     // Fetch data immediately on mount
     fetchEvaluationDataFromApi(evaluationId || null);
     
-    // Set up polling interval (every 5 seconds) for incomplete evaluations
-    pollingIntervalRef.current = setInterval(() => {
-      // Only poll if we have an evaluation ID and the evaluation is not complete
-      if (evaluationId && (!evaluationData || !evaluationData.final_winner)) {
-        fetchEvaluationDataFromApi(evaluationId);
-      } else if (pollingIntervalRef.current) {
-        // Stop polling once we have complete data
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-    }, 5000);
+    // Setup polling
+    if (evaluationId) {
+      console.debug("Setting up polling for evaluation updates");
+      
+      // Poll more frequently at first (every 3 seconds), then slow down
+      const pollInterval = 3000;
+      pollingIntervalRef.current = setInterval(() => {
+        // Only poll if we have an evaluation ID and the evaluation is not complete
+        if (!evaluationData?.final_winner) {
+          console.debug("Polling for evaluation updates...");
+          fetchEvaluationDataFromApi(evaluationId);
+        } else {
+          // Stop polling once we have complete data
+          console.debug("Final results received, stopping polling");
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+        }
+      }, pollInterval);
+      
+      // Add backoff logic - slow down polling after 30 seconds
+      setTimeout(() => {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = setInterval(() => {
+            if (!evaluationData?.final_winner) {
+              fetchEvaluationDataFromApi(evaluationId);
+            } else if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current);
+              pollingIntervalRef.current = null;
+            }
+          }, 5000); // Slower polling
+        }
+      }, 30000);
+    }
     
     // Clean up on unmount
     return () => {
@@ -291,7 +344,16 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
         pollingIntervalRef.current = null;
       }
     };
-  }, [evaluationId, evaluationData?.final_winner]);
+  }, [evaluationId]);
+
+  // Add a separate effect to handle updates when evaluation data changes
+  useEffect(() => {
+    if (evaluationData?.final_winner && pollingIntervalRef.current) {
+      console.debug("Evaluation complete, stopping polling");
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  }, [evaluationData?.final_winner]);
 
   // Add a useEffect to automatically show evaluation when data is fully loaded
   useEffect(() => {
@@ -542,7 +604,7 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
               {/* Job Requirements */}
               <div className="bg-white p-6 rounded-xl shadow-md">
                 <h2 className="text-xl font-semibold mb-2 text-gray-800">Job Requirements</h2>
-                <p className="text-gray-700">{jobDescription || evaluationData?.job_requirements || "AI/ML Research Engineer with biotech experience"}</p>
+                <p className="text-gray-700">{jobDescription || evaluationData?.job_description || "AI/ML Research Engineer with biotech experience"}</p>
               </div>
               
               {/* Thought Tree */}
@@ -557,7 +619,7 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
                     thoughts={evaluationThoughts}
                     currentThoughtIndex={currentThoughtIndex}
                     typeColors={typeColors}
-                    jobDescription={jobDescription || evaluationData?.job_requirements}
+                    jobDescription={jobDescription || evaluationData?.job_description}
                   />
                 </div>
               </div>

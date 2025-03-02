@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Briefcase } from 'lucide-react';
 import { ThoughtNode, TypeColors } from './types';
 
@@ -22,8 +22,77 @@ const ThoughtTreeCanvas: React.FC<ThoughtTreeCanvasProps> = ({
   const [hoveredJobTitle, setHoveredJobTitle] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
   
-  // Calculate which thoughts are visible based on the current index
-  const visibleThoughts = thoughts.slice(0, currentThoughtIndex + 1);
+  // Add a function to position thought nodes in the visualization
+  const getPositionedThoughts = useMemo(() => {
+    if (!Array.isArray(thoughts) || thoughts.length === 0) {
+      console.debug("No thoughts to position");
+      return [];
+    }
+    
+    console.debug("Positioning thoughts:", thoughts.length);
+    
+    // Find all unique levels
+    const levels = Array.from(new Set(thoughts.map(t => t.level))).sort();
+    console.debug("Detected levels:", levels);
+    
+    // Count thoughts per level
+    const thoughtsPerLevel = levels.reduce((acc, level) => {
+      acc[level] = thoughts.filter(t => t.level === level).length;
+      return acc;
+    }, {} as Record<number, number>);
+    
+    console.debug("Thoughts per level:", thoughtsPerLevel);
+    
+    // Position each thought with x,y coordinates and add parent/child connections
+    return thoughts.map((thought, idx) => {
+      const level = thought.level || 1;
+      const levelIndex = levels.indexOf(level);
+      const levelCount = thoughtsPerLevel[level];
+      
+      // Calculate vertical position based on level
+      const y = (levelIndex + 1) / (levels.length + 1);
+      
+      // Find thought's position within its level
+      const thoughtsInSameLevel = thoughts.filter(t => t.level === level);
+      const positionInLevel = thoughtsInSameLevel.findIndex(t => t.id === thought.id);
+      
+      // Calculate horizontal position 
+      const x = (positionInLevel + 1) / (levelCount + 1);
+      
+      // Determine children (thoughts in next level that reference this thought)
+      const children = [];
+      if (levelIndex < levels.length - 1) {
+        const nextLevel = levels[levelIndex + 1];
+        const nextLevelThoughts = thoughts.filter(t => t.level === nextLevel);
+        
+        // Logic to determine which thoughts are children
+        // For simplicity, connect to thoughts that share candidateA/B references
+        const isChildConnected = (potentialChild: ThoughtNode) => {
+          // Connect if they refer to the same candidate
+          return (thought.candidateA && potentialChild.candidateA) || 
+                 (thought.candidateB && potentialChild.candidateB);
+        };
+        
+        children.push(...nextLevelThoughts
+          .filter(isChildConnected)
+          .map(t => thoughts.findIndex(th => th.id === t.id))
+        );
+      }
+      
+      return {
+        ...thought,
+        x,
+        y,
+        children,
+        text: thought.content
+      };
+    });
+  }, [thoughts]);
+
+  // Replace visibleThoughts with a filtered version of positioned thoughts
+  const visibleThoughts = useMemo(() => {
+    return getPositionedThoughts.slice(0, currentThoughtIndex + 1);
+  }, [getPositionedThoughts, currentThoughtIndex]);
 
   // Add a safety check for visibleThoughts
   const connections = Array.isArray(visibleThoughts) 
@@ -41,7 +110,14 @@ const ThoughtTreeCanvas: React.FC<ThoughtTreeCanvasProps> = ({
               console.debug("thoughts array is not valid:", thoughts);
               return false;
             }
-            const childIndex = thoughts.findIndex((t: ThoughtNode) => t && t.id === childId);
+            
+            // Find the child thought by ID
+            const childThought = thoughts.find((t: ThoughtNode) => t && t.id === childId);
+            if (!childThought) return false;
+            
+            // Get the index of the child in the original thoughts array
+            const childIndex = thoughts.indexOf(childThought);
+            
             // Only return true if the child exists and is within the current visible range
             return childIndex !== -1 && childIndex <= currentThoughtIndex;
           })
@@ -49,12 +125,12 @@ const ThoughtTreeCanvas: React.FC<ThoughtTreeCanvasProps> = ({
           .map((childId: number) => {
             if (!Array.isArray(thoughts)) return null;
             
-            const child = thoughts.find((t: ThoughtNode) => t && t.id === childId);
-            if (!child) {
+            const childThought = thoughts.find((t: ThoughtNode) => t && t.id === childId);
+            if (!childThought) {
               console.debug("Could not find child with ID:", childId);
               return null;
             }
-            return { from: thought, to: child };
+            return { from: thought, to: childThought };
           })
           // Filter out null connections
           .filter((conn): conn is { from: ThoughtNode; to: ThoughtNode } => conn !== null);
@@ -95,6 +171,17 @@ const ThoughtTreeCanvas: React.FC<ThoughtTreeCanvasProps> = ({
       </div>
     );
   };
+
+  // Add extensive debug logging
+  useEffect(() => {
+    console.debug("ThoughtTreeCanvas rendering with:", {
+      thoughtsCount: thoughts?.length || 0,
+      visibleThoughtsCount: visibleThoughts?.length || 0,
+      currentThoughtIndex,
+      hasPositioning: thoughts.some(t => t.x !== undefined && t.y !== undefined),
+      connectionsCount: connections?.length || 0,
+    });
+  }, [thoughts, visibleThoughts, currentThoughtIndex, connections]);
 
   return (
     <div 

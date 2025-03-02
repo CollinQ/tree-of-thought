@@ -15,7 +15,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profile, isWinner, side }) =>
     setExpandedExperience(expandedExperience === index ? null : index);
   };
   
-  console.log("PROFILE: ", profile);
+  // console.log("PROFILE: ", profile);
   
   return (
     <div 
@@ -43,7 +43,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profile, isWinner, side }) =>
       <div className="mb-4">
         <h4 className="text-lg font-semibold mb-2">Experience</h4>
         <div className="space-y-3">
-          {profile.workExperience.map((exp, index) => (
+          {profile.experience.map((exp, index) => (
             <div key={index} className="border-l-2 border-blue-500 pl-3">
               {/* Make entire experience block clickable */}
               <div 

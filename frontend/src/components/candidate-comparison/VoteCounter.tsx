@@ -7,6 +7,8 @@ import { VoteCounterProps } from './types';
  */
 const VoteCounter: React.FC<VoteCounterProps> = ({ votes, profiles, winner }) => {
   // Get the winning profile name safely
+
+  console.log('Votes:', votes);
   const getWinnerName = () => {
     if (winner === 'candidate1') return profiles.candidate1.name;
     if (winner === 'candidate2') return profiles.candidate2.name;
