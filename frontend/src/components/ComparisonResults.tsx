@@ -189,26 +189,7 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
     }
   };
 
-  // Safely create candidate nodes with proper null checks
-    const candidateANodes = {
-    level1: evaluationData?.iteration_1 ? 
-      evaluationData.iteration_1.filter(t => t.includes("Candidate A")).length : 0,
-    level2: evaluationData?.iteration_2 ? 
-      evaluationData.iteration_2.filter(t => t.includes("Candidate A")).length : 0,
-    level3: evaluationData?.iteration_3 ? 
-      evaluationData.iteration_3.filter(t => t.includes("Candidate A")).length : 0
-    };
-    
-    const candidateBNodes = {
-    level1: evaluationData?.iteration_1 ? 
-      evaluationData.iteration_1.filter(t => t.includes("Candidate B")).length : 0,
-    level2: evaluationData?.iteration_2 ? 
-      evaluationData.iteration_2.filter(t => t.includes("Candidate B")).length : 0,
-    level3: evaluationData?.iteration_3 ? 
-      evaluationData.iteration_3.filter(t => t.includes("Candidate B")).length : 0
-  };
-
-  // Update the evaluationThoughts useMemo function to create proper ThoughtNode objects
+  // Update the evaluationThoughts useMemo function to create a binary tree structure with proper text
   const evaluationThoughts = useMemo(() => {
     console.debug("Processing evaluation thoughts data");
     
@@ -217,81 +198,102 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
       return [];
     }
     
-    let thoughts: ThoughtNode[] = [];
-    let thoughtId = 0;
+    // Collect all thoughts from all iterations into a flat array
+    const allThoughtTexts: string[] = [];
     
-    // Process iteration 1 if it exists
+    // Add iteration 1 thoughts
     if (evaluationData.iteration_1 && Array.isArray(evaluationData.iteration_1)) {
-      console.debug("Processing iteration 1 with", evaluationData.iteration_1.length, "thoughts");
-      evaluationData.iteration_1.forEach((thought) => {
-        const isAboutCandidateA = thought.includes("Candidate A");
-        const isAboutCandidateB = thought.includes("Candidate B");
-        
-        thoughts.push({
-          id: thoughtId++,
-          level: 1,
-          content: thought,
-          text: thought.substring(0, 60) + (thought.length > 60 ? "..." : ""),
-          fullText: thought,
-          type: isAboutCandidateA ? 'jenny' : isAboutCandidateB ? 'radostin' : 'analysis',
-          candidateA: isAboutCandidateA,
-          candidateB: isAboutCandidateB,
-          children: [] // Will be populated during positioning
-        });
-      });
-      } else {
-      console.debug("Iteration 1 is missing or not an array");
+      allThoughtTexts.push(...evaluationData.iteration_1);
     }
     
-    // Process iteration 2 if it exists
+    // Add iteration 2 thoughts
     if (evaluationData.iteration_2 && Array.isArray(evaluationData.iteration_2)) {
-      console.debug("Processing iteration 2 with", evaluationData.iteration_2.length, "thoughts");
-      evaluationData.iteration_2.forEach((thought) => {
-        const isAboutCandidateA = thought.includes("Candidate A");
-        const isAboutCandidateB = thought.includes("Candidate B");
-        
-        thoughts.push({
-          id: thoughtId++,
-          level: 2,
-          content: thought,
-          text: thought.substring(0, 60) + (thought.length > 60 ? "..." : ""),
-          fullText: thought,
-          type: isAboutCandidateA ? 'jenny' : isAboutCandidateB ? 'radostin' : 'analysis',
-          candidateA: isAboutCandidateA,
-          candidateB: isAboutCandidateB,
-          children: [] // Will be populated during positioning
-        });
-      });
-      } else {
-      console.debug("Iteration 2 is missing or not an array");
+      allThoughtTexts.push(...evaluationData.iteration_2);
     }
     
-    // Process iteration 3 if it exists
+    // Add iteration 3 thoughts if they exist
     if (evaluationData.iteration_3 && Array.isArray(evaluationData.iteration_3)) {
-      console.debug("Processing iteration 3 with", evaluationData.iteration_3.length, "thoughts");
-      evaluationData.iteration_3.forEach((thought) => {
-        const isAboutCandidateA = thought.includes("Candidate A");
-        const isAboutCandidateB = thought.includes("Candidate B");
-        
-        thoughts.push({
-          id: thoughtId++,
-          level: 3,
-          content: thought,
-          text: thought.substring(0, 60) + (thought.length > 60 ? "..." : ""),
-          fullText: thought,
-          type: isAboutCandidateA ? 'jenny' : isAboutCandidateB ? 'radostin' : 'analysis',
-          candidateA: isAboutCandidateA,
-          candidateB: isAboutCandidateB,
-          children: [] // Will be populated during positioning
-        });
+      allThoughtTexts.push(...evaluationData.iteration_3);
+    }
+    
+    // Create the tree structure
+    let thoughts: ThoughtNode[] = [];
+    
+    // Add job requirements as the root node (level 0)
+    thoughts.push({
+      id: 0,
+      level: 0,
+      content: jobDescription || evaluationData?.job_description || "Job Requirements",
+      text: jobDescription || evaluationData?.job_description || "Job Requirements",
+      fullText: jobDescription || evaluationData?.job_description || "Job Requirements",
+      type: 'root',
+      children: [1, 2] // Root node should only connect to nodes 1 and 2
+    });
+    
+    // Create a perfect binary tree structure
+    // Level 1: 2 nodes (id 1-2)
+    // Level 2: 4 nodes (id 3-6)
+    // Level 3: 8 nodes (id 7-14)
+    
+    // Level 1 nodes (2 nodes)
+    for (let i = 0; i < 2; i++) {
+      const thoughtId = i + 1;
+      const thoughtText = allThoughtTexts[i] || `Thought ${thoughtId}`;
+      
+      thoughts.push({
+        id: thoughtId,
+        level: 1,
+        content: thoughtText,
+        text: thoughtText.substring(0, 60) + (thoughtText.length > 60 ? "..." : ""),
+        fullText: thoughtText,
+        type: 'thought',
+        candidateA: thoughtText.includes("Candidate A"),
+        candidateB: thoughtText.includes("Candidate B"),
+        children: [2*thoughtId+1, 2*thoughtId+2] // Binary tree formula
       });
-    } else {
-      console.debug("Iteration 3 is missing or not an array");
+    }
+    
+    // Level 2 nodes (4 nodes)
+    for (let i = 0; i < 4; i++) {
+      const thoughtId = i + 3;
+      const thoughtText = allThoughtTexts[i+2] || `Thought ${thoughtId}`;
+      
+      thoughts.push({
+        id: thoughtId,
+        level: 2,
+        content: thoughtText,
+        text: thoughtText.substring(0, 60) + (thoughtText.length > 60 ? "..." : ""),
+        fullText: thoughtText,
+        type: 'thought',
+        candidateA: thoughtText.includes("Candidate A"),
+        candidateB: thoughtText.includes("Candidate B"),
+        children: [2*thoughtId+1, 2*thoughtId+2] // Binary tree formula
+      });
+    }
+    
+    // Level 3 nodes (8 nodes)
+    for (let i = 0; i < 8; i++) {
+      const thoughtId = i + 7;
+      const thoughtText = allThoughtTexts[i+6] || `Thought ${thoughtId}`;
+      
+      thoughts.push({
+        id: thoughtId,
+        level: 3,
+        content: thoughtText,
+        text: thoughtText.substring(0, 60) + (thoughtText.length > 60 ? "..." : ""),
+        fullText: thoughtText,
+        type: 'thought',
+        candidateA: thoughtText.includes("Candidate A"),
+        candidateB: thoughtText.includes("Candidate B"),
+        children: [] // Leaf nodes have no children
+      });
     }
     
     console.debug("Processed total thoughts:", thoughts.length);
+    console.debug("Tree structure:", thoughts.map(t => ({ id: t.id, level: t.level, children: t.children, text: t.text })));
+    
     return thoughts;
-  }, [evaluationData]);
+  }, [evaluationData, jobDescription]);
 
   // Update the polling effect to be more robust
   useEffect(() => {
@@ -306,8 +308,8 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
       
       // Poll more frequently at first (every 3 seconds), then slow down
       const pollInterval = 3000;
-      pollingIntervalRef.current = setInterval(() => {
-        // Only poll if we have an evaluation ID and the evaluation is not complete
+    pollingIntervalRef.current = setInterval(() => {
+      // Only poll if we have an evaluation ID and the evaluation is not complete
         if (!evaluationData?.final_winner) {
           console.debug("Polling for evaluation updates...");
           fetchEvaluationDataFromApi(evaluationId);
@@ -327,11 +329,11 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
           clearInterval(pollingIntervalRef.current);
           pollingIntervalRef.current = setInterval(() => {
             if (!evaluationData?.final_winner) {
-              fetchEvaluationDataFromApi(evaluationId);
-            } else if (pollingIntervalRef.current) {
-              clearInterval(pollingIntervalRef.current);
-              pollingIntervalRef.current = null;
-            }
+        fetchEvaluationDataFromApi(evaluationId);
+      } else if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
           }, 5000); // Slower polling
         }
       }, 30000);
@@ -387,8 +389,8 @@ const ComparisonResults: React.FC<ComparisonResultsProps> = ({ evaluationId, ...
         
         // Set the vote counts based on the majority_vote data
         if (evaluationData.majority_vote) {
-          const voteA = parseInt(evaluationData.majority_vote["Candidate A"].$numberInt) || 0;
-          const voteB = parseInt(evaluationData.majority_vote["Candidate B"].$numberInt) || 0;
+          const voteA = evaluationData.majority_vote["Candidate A"] || 0;
+          const voteB = evaluationData.majority_vote["Candidate B"] || 0;
           
           console.debug("Setting final vote counts:", { voteA, voteB });
           

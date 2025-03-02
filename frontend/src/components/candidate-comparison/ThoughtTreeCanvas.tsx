@@ -1,301 +1,204 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Briefcase } from 'lucide-react';
-import { ThoughtNode, TypeColors } from './types';
+import React, { useState, useMemo } from 'react';
+import { ThoughtNode } from '../../types';
+
+// Define typeColors directly in this file instead of importing
+const typeColors = {
+  'job_requirements': {
+    background: '#f0f9ff',
+    border: '#bae6fd',
+    text: '#0369a1',
+    line: '#0ea5e9'
+  },
+  'candidate_evaluation': {
+    background: '#f0fdf4',
+    border: '#bbf7d0',
+    text: '#166534',
+    line: '#22c55e'
+  },
+  'comparison': {
+    background: '#fdf4ff',
+    border: '#f5d0fe',
+    text: '#86198f',
+    line: '#d946ef'
+  },
+  'decision': {
+    background: '#fff7ed',
+    border: '#fed7aa',
+    text: '#9a3412',
+    line: '#f97316'
+  },
+  'default': {
+    background: '#f0f4f8',
+    border: '#cbd5e0',
+    text: '#2d3748',
+    line: '#4285F4'
+  }
+};
 
 interface ThoughtTreeCanvasProps {
   thoughts: ThoughtNode[];
   currentThoughtIndex: number;
-  typeColors: TypeColors;
-  jobDescription?: string;
 }
 
-/**
- * ThoughtTreeCanvas component displays the thought tree visualization
- */
-const ThoughtTreeCanvas: React.FC<ThoughtTreeCanvasProps> = ({ 
-  thoughts, 
+const getTypeColor = (type: string, element: 'background' | 'border' | 'text' | 'line', colors: Record<string, any>) => {
+  const defaultColors = {
+    background: '#f0f4f8',
+    border: '#cbd5e0',
+    text: '#2d3748',
+    line: '#4285F4'
+  };
+  
+  if (!colors || !colors[type]) {
+    return defaultColors[element];
+  }
+  
+  return colors[type][element] || defaultColors[element];
+};
+
+export const ThoughtTreeCanvas: React.FC<ThoughtTreeCanvasProps> = ({
+  thoughts,
   currentThoughtIndex,
-  typeColors,
-  jobDescription
 }) => {
   const [hoveredThought, setHoveredThought] = useState<ThoughtNode | null>(null);
-  const [hoveredJobTitle, setHoveredJobTitle] = useState<boolean>(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  
-  // Add a function to position thought nodes in the visualization
-  const getPositionedThoughts = useMemo(() => {
-    if (!Array.isArray(thoughts) || thoughts.length === 0) {
-      console.debug("No thoughts to position");
-      return [];
-    }
-    
+
+  // Position thoughts in a tree layout
+  const visibleThoughts = useMemo(() => {
     console.debug("Positioning thoughts:", thoughts.length);
     
-    // Find all unique levels
-    const levels = Array.from(new Set(thoughts.map(t => t.level))).sort();
+    if (!thoughts || thoughts.length === 0) {
+      return [];
+    }
+
+    // Determine the levels in the tree
+    const levels = [...new Set(thoughts.map(t => t.level))].sort((a, b) => a - b);
     console.debug("Detected levels:", levels);
     
     // Count thoughts per level
-    const thoughtsPerLevel = levels.reduce((acc, level) => {
-      acc[level] = thoughts.filter(t => t.level === level).length;
-      return acc;
-    }, {} as Record<number, number>);
-    
+    const thoughtsPerLevel: Record<number, number> = {};
+    levels.forEach(level => {
+      thoughtsPerLevel[level] = thoughts.filter(t => t.level === level).length;
+    });
     console.debug("Thoughts per level:", thoughtsPerLevel);
     
-    // Position each thought with x,y coordinates and add parent/child connections
-    return thoughts.map((thought, idx) => {
-      const level = thought.level || 1;
-      const levelIndex = levels.indexOf(level);
+    // Position each thought
+    return thoughts.map((thought, index) => {
+      const level = thought.level;
       const levelCount = thoughtsPerLevel[level];
+      const levelThoughts = thoughts.filter(t => t.level === level);
+      const levelIndex = levelThoughts.findIndex(t => t.id === thought.id);
       
-      // Calculate vertical position based on level
-      const y = (levelIndex + 1) / (levels.length + 1);
-      
-      // Find thought's position within its level
-      const thoughtsInSameLevel = thoughts.filter(t => t.level === level);
-      const positionInLevel = thoughtsInSameLevel.findIndex(t => t.id === thought.id);
-      
-      // Calculate horizontal position 
-      const x = (positionInLevel + 1) / (levelCount + 1);
-      
-      // Determine children (thoughts in next level that reference this thought)
-      const children = [];
-      if (levelIndex < levels.length - 1) {
-        const nextLevel = levels[levelIndex + 1];
-        const nextLevelThoughts = thoughts.filter(t => t.level === nextLevel);
+      // Calculate x position based on level index
+      // For level 0 (root), center it
+      // For other levels, distribute evenly
+      let x = 0.5; // Default to center
+      if (level === 0) {
+        x = 0.5; // Center the root
+      } else {
+        // Distribute nodes evenly across the width
+        // Add some padding on the sides
+        const padding = 0.1;
+        const availableWidth = 1 - (2 * padding);
+        const step = levelCount > 1 ? availableWidth / (levelCount - 1) : 0;
+        x = padding + (levelIndex * step);
         
-        // Logic to determine which thoughts are children
-        // For simplicity, connect to thoughts that share candidateA/B references
-        const isChildConnected = (potentialChild: ThoughtNode) => {
-          // Connect if they refer to the same candidate
-          return (thought.candidateA && potentialChild.candidateA) || 
-                 (thought.candidateB && potentialChild.candidateB);
-        };
-        
-        children.push(...nextLevelThoughts
-          .filter(isChildConnected)
-          .map(t => thoughts.findIndex(th => th.id === t.id))
-        );
+        // For levels with only one node, center it
+        if (levelCount === 1) {
+          x = 0.5;
+        }
       }
+      
+      // Calculate y position based on level
+      // Distribute levels evenly down the canvas
+      const y = 0.2 + (level * 0.2); // Start at 20% from top, each level adds 20%
       
       return {
         ...thought,
         x,
         y,
-        children,
-        text: thought.content
       };
     });
   }, [thoughts]);
 
-  // Replace visibleThoughts with a filtered version of positioned thoughts
-  const visibleThoughts = useMemo(() => {
-    return getPositionedThoughts.slice(0, currentThoughtIndex + 1);
-  }, [getPositionedThoughts, currentThoughtIndex]);
-
-  // Add a safety check for visibleThoughts
-  const connections = Array.isArray(visibleThoughts) 
-    ? visibleThoughts.flatMap((thought: ThoughtNode) => {
-        // Check if thought exists and has a children property
-        if (!thought || !thought.children || !Array.isArray(thought.children)) {
-          console.debug("Skipping thought with missing or invalid children:", thought);
-          return [];
-        }
+  // Create connections between nodes
+  const connections = useMemo(() => {
+    console.debug("Building connections");
+    
+    if (!Array.isArray(visibleThoughts)) return [];
+    
+    const allConnections: { from: ThoughtNode; to: ThoughtNode }[] = [];
+    
+    // Log all nodes and their children
+    visibleThoughts.forEach(node => {
+      console.debug(`Node ${node.id} (level ${node.level}) has children:`, node.children);
+    });
+    
+    // For each node, find its children and create connections
+    visibleThoughts.forEach(fromNode => {
+      // Skip nodes without children
+      if (!fromNode.children || !Array.isArray(fromNode.children) || fromNode.children.length === 0) {
+        return;
+      }
       
-        return thought.children
-          // Filter children that should be visible based on currentThoughtIndex
-          .filter((childId: number) => {
-            if (!Array.isArray(thoughts)) {
-              console.debug("thoughts array is not valid:", thoughts);
-              return false;
-            }
-            
-            // Find the child thought by ID
-            const childThought = thoughts.find((t: ThoughtNode) => t && t.id === childId);
-            if (!childThought) return false;
-            
-            // Get the index of the child in the original thoughts array
-            const childIndex = thoughts.indexOf(childThought);
-            
-            // Only return true if the child exists and is within the current visible range
-            return childIndex !== -1 && childIndex <= currentThoughtIndex;
-          })
-          // Map each child ID to a connection object
-          .map((childId: number) => {
-            if (!Array.isArray(thoughts)) return null;
-            
-            const childThought = thoughts.find((t: ThoughtNode) => t && t.id === childId);
-            if (!childThought) {
-              console.debug("Could not find child with ID:", childId);
-              return null;
-            }
-            return { from: thought, to: childThought };
-          })
-          // Filter out null connections
-          .filter((conn): conn is { from: ThoughtNode; to: ThoughtNode } => conn !== null);
-      })
-    : [];
+      // For each child ID, find the corresponding node
+      fromNode.children.forEach(childId => {
+        const toNode = visibleThoughts.find(node => node.id === childId);
+        
+        if (toNode) {
+          // Only include connections for nodes that are visible based on currentThoughtIndex
+          const fromIndex = visibleThoughts.findIndex(node => node.id === fromNode.id);
+          const toIndex = visibleThoughts.findIndex(node => node.id === toNode.id);
+          
+          if (fromIndex <= currentThoughtIndex && toIndex <= currentThoughtIndex) {
+            allConnections.push({ from: fromNode, to: toNode });
+            console.debug(`Added connection: ${fromNode.id} -> ${toNode.id}`);
+          }
+        } else {
+          console.debug(`Child node with ID ${childId} not found for parent ${fromNode.id}`);
+        }
+      });
+    });
+    
+    console.debug("Final connections:", {
+      count: allConnections.length,
+      connections: allConnections.map(c => `${c.from.id} -> ${c.to.id}`)
+    });
+    
+    return allConnections;
+  }, [visibleThoughts, currentThoughtIndex]);
 
-  // Add debug logging
-  console.debug("Building connections:", {
-    visibleThoughtsCount: Array.isArray(visibleThoughts) ? visibleThoughts.length : 0,
-    connectionsCount: connections.length,
-    currentThoughtIndex
+  console.debug("ThoughtTreeCanvas rendering with:", {
+    thoughtsCount: thoughts.length,
+    visibleThoughtsCount: visibleThoughts.length,
+    currentThoughtIndex,
+    hasPositioning: visibleThoughts.length > 0 && visibleThoughts[0].x !== undefined,
+    connectionsCount: connections.length
   });
 
-  // Generate thought detail content for hovering
-  const getThoughtDetail = (thought: ThoughtNode) => {
-    // Use fullText if available, otherwise use text
-    const displayText = thought.fullText || thought.text;
-    return (
-      <div className="text-sm">
-        <div className="font-semibold mb-2 pb-1 border-b border-gray-100">
-          {thought.type 
-            ? `${thought.type.charAt(0).toUpperCase() + thought.type.slice(1)} Thought` 
-            : "Evaluation Thought"}
-        </div>
-        <div className="leading-relaxed">{displayText}</div>
-        
-        {/* Add some contextual information based on the thought type */}
-        {thought.type === 'jenny' && (
-          <div className="mt-2 text-xs bg-green-50 p-2 rounded text-green-700">
-            Evaluating candidate A's specific qualifications and experience
-          </div>
-        )}
-        {thought.type === 'radostin' && (
-          <div className="mt-2 text-xs bg-purple-50 p-2 rounded text-purple-700">
-            Evaluating candidate B's specific qualifications and experience
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // Add extensive debug logging
-  useEffect(() => {
-    console.debug("ThoughtTreeCanvas rendering with:", {
-      thoughtsCount: thoughts?.length || 0,
-      visibleThoughtsCount: visibleThoughts?.length || 0,
-      currentThoughtIndex,
-      hasPositioning: thoughts.some(t => t.x !== undefined && t.y !== undefined),
-      connectionsCount: connections?.length || 0,
-    });
-  }, [thoughts, visibleThoughts, currentThoughtIndex, connections]);
-
   return (
-    <div 
-      className="relative rounded-xl bg-white p-4 shadow-lg overflow-visible h-[900px]" 
-      ref={containerRef}
-    >
-      {/* <div className="absolute top-4 left-4 text-sm font-medium bg-white/80 backdrop-blur-sm p-2 rounded-lg z-20">
-        <div className="mb-2 font-bold">Thought Types</div>
-        {Object.entries(typeColors).map(([type, color]) => (
-          <div key={type} className="flex items-center mb-1">
-            <div 
-              className="w-3 h-3 rounded-full mr-2"
-              style={{ backgroundColor: color.line }}
-            ></div>
-            <div>{type.charAt(0).toUpperCase() + type.slice(1)}</div>
-          </div>
-        ))}
-      </div> */}
+    <div className="relative w-full h-full" style={{ minHeight: '500px' }}>
+      {/* Render the thought nodes */}
+      {visibleThoughts.map((thought, index) => {
+        const isVisible = index <= currentThoughtIndex;
+        if (!isVisible) return null;
 
-      {jobDescription && (
-        <div 
-          className="absolute top-4 right-4 z-10 cursor-pointer"
-          onMouseEnter={() => setHoveredJobTitle(true)}
-          onMouseLeave={() => setHoveredJobTitle(false)}
-        >
-          <h3 className="text-amber-800 font-semibold flex items-center px-3 py-2 bg-amber-50 rounded-lg shadow-sm border border-amber-200">
-            <span className="text-amber-600 mr-2">📋</span> Job Requirements
-          </h3>
-          
-          {hoveredJobTitle && (
-            <div className="absolute right-0 top-full mt-2 w-80 bg-amber-50 p-4 rounded-lg shadow-md border border-amber-200 z-50">
-              <p className="text-amber-700 text-sm">{jobDescription}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      <svg width="100%" height="100%" className="absolute inset-0 pointer-events-none">
-        {/* Draw straight line connections between thoughts */}
-        {connections.map((connection, index) => {
-          const { from, to } = connection;
-          const fromX = `${from.x * 100}%`;
-          const fromY = `${from.y * 100}%`;
-          const toX = `${to.x * 100}%`;
-          const toY = `${to.y * 100}%`;
-          
-          return (
-            <g key={`connection-${index}`}>
-              {/* Shadow line for better visibility */}
-              <line 
-                x1={fromX}
-                y1={fromY}
-                x2={toX}
-                y2={toY}
-                stroke="rgba(0,0,0,0.1)"
-                strokeWidth="5"
-                strokeLinecap="round"
-              />
-              {/* Main colored line */}
-              <line 
-                x1={fromX}
-                y1={fromY}
-                x2={toX}
-                y2={toY}
-                stroke={typeColors[from.type].line}
-                strokeWidth="3"
-                strokeLinecap="round"
-              />
-              {/* Add arrowhead */}
-              <polygon
-                points={`
-                  ${parseFloat(toX)},${parseFloat(toY)} 
-                  ${parseFloat(toX) - 5},${parseFloat(toY) - 5} 
-                  ${parseFloat(toX) - 5},${parseFloat(toY) + 5}
-                `}
-                fill={typeColors[from.type].line}
-                transform={`
-                  rotate(
-                    ${Math.atan2(
-                      parseFloat(toY) - parseFloat(fromY),
-                      parseFloat(toX) - parseFloat(fromX)
-                    ) * (180 / Math.PI)},
-                    ${toX},${toY}
-                  )
-                `}
-              />
-            </g>
-          );
-        })}
-      </svg>
-
-      {/* Render thought bubbles */}
-      {visibleThoughts.map((thought) => {
-        const typeColor = typeColors[thought.type] || { bg: 'bg-gray-200', text: 'text-gray-800', line: '#94a3b8' };
         const isHovered = hoveredThought?.id === thought.id;
-        
+
+        const style = {
+          left: `${thought.x * 100}%`,
+          top: `${thought.y * 100}%`,
+          transform: 'translate(-50%, -50%)',
+          backgroundColor: getTypeColor(thought.type, 'background', typeColors),
+          borderColor: getTypeColor(thought.type, 'border', typeColors),
+          color: getTypeColor(thought.type, 'text', typeColors),
+          opacity: isVisible ? 1 : 0,
+          transition: 'opacity 0.3s ease-in-out',
+        };
+
         return (
           <div
-            key={thought.id}
-            className={`absolute transition-all duration-200 shadow-md rounded-lg p-3 cursor-pointer ${isHovered ? 'z-30' : 'z-20'} ${typeColor.bg} ${typeColor.text}`}
-            style={{
-              left: `${thought.x * 100}%`,
-              top: `${thought.y * 100}%`,
-              transform: 'translate(-50%, -50%)',
-              opacity: isHovered ? 1 : 0.9,
-              maxWidth: '150px',
-              minHeight: '70px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              borderWidth: isHovered ? '2px' : '1px',
-              borderColor: isHovered ? '#2563eb' : typeColor.line,
-              boxShadow: isHovered ? '0 0 0 2px rgba(37, 99, 235, 0.3), 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' : ''
-            }}
+            key={`thought-${thought.id}`}
+            className="absolute p-3 rounded-lg border shadow-md max-w-xs z-10"
+            style={style}
             onMouseEnter={() => setHoveredThought(thought)}
             onMouseLeave={() => setHoveredThought(null)}
           >
@@ -306,33 +209,44 @@ const ThoughtTreeCanvas: React.FC<ThoughtTreeCanvasProps> = ({
         );
       })}
 
-      {/* Hover popup - positioned with absolute width and always visible */}
-      {hoveredThought && (
-        <div 
-          className="fixed z-50 bg-white p-4 rounded-lg shadow-xl border border-gray-200"
-          style={{
-            left: containerRef.current 
-              ? containerRef.current.getBoundingClientRect().left + (hoveredThought.x * containerRef.current.offsetWidth)
-              : 0,
-            top: containerRef.current
-              ? containerRef.current.getBoundingClientRect().top + (hoveredThought.y * containerRef.current.offsetHeight) + 30
-              : 0,
-            transform: 'translateX(-50%)',
-            width: '320px',
-            maxWidth: '95vw',
-            pointerEvents: 'none',
-            maxHeight: '300px',
-            overflowY: 'auto'
-          }}
-        >
-          {getThoughtDetail(hoveredThought)}
+      {/* Render the SVG connections */}
+      <svg 
+        className="absolute inset-0 w-full h-full pointer-events-none z-0"
+        style={{ overflow: 'visible' }}
+      >
+        {connections.map((connection, index) => {
+          const { from, to } = connection;
           
-          {/* Add visual indicator to connect popup to the bubble */}
-          <div 
-            className="absolute top-0 left-1/2 w-4 h-4 bg-white transform -translate-x-1/2 -translate-y-1/2 rotate-45 border-t border-l border-gray-200"
-          ></div>
-        </div>
-      )}
+          // Debug each connection
+          console.debug(`Connection ${index}: ${from.id} -> ${to.id}`, {
+            isRootConnection: from.id === 0,
+            fromLevel: from.level,
+            toLevel: to.level,
+            fromX: from.x,
+            fromY: from.y,
+            toX: to.x,
+            toY: to.y,
+            fromXPercent: `${from.x * 100}%`,
+            fromYPercent: `${from.y * 100}%`,
+            toXPercent: `${to.x * 100}%`,
+            toYPercent: `${to.y * 100}%`
+          });
+          
+          return (
+            <line 
+              key={`connection-${index}`}
+              x1={`${from.x * 100}%`}
+              y1={`${from.y * 100}%`}
+              x2={`${to.x * 100}%`}
+              y2={`${to.y * 100}%`}
+              stroke="#4285F4"
+              strokeWidth="2"
+              strokeOpacity="1"
+              strokeLinecap="round"
+            />
+          );
+        })}
+      </svg>
     </div>
   );
 };
